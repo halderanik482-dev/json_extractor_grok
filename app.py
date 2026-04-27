@@ -24,18 +24,39 @@ uploaded_file = st.file_uploader("Upload Medical PDF", type="pdf")
 if uploaded_file is not None:
     with st.spinner("Groq is reading the report at lightning speed..."):
         try:
-            # 1. Read the PDF (Safely limited for free tier)
-            text = ""
+           # 1. Read the ENTIRE PDF
+            raw_text = ""
             with pdfplumber.open(uploaded_file) as pdf:
-                # Only read the first 4 pages to avoid token limits
-                for page in pdf.pages[:4]: 
+                for page in pdf.pages:
                     extracted = page.extract_text()
                     if extracted:
-                        text += extracted + "\n"
+                        raw_text += extracted + "\n"
             
-            # Failsafe: Force cut the text at 18,000 characters (roughly 4,500 tokens)
-            # This guarantees you will NEVER hit the 6,000 limit.
-            text = text[:18000]
+            # 2. Smart Filtering to bypass Groq's token limits
+            # We look for keywords and only keep the lines surrounding them.
+            keywords = ["haemoglobin", "hemoglobin", "hb", "vitamin b12", "b12", "vitamin d", "25-hydroxy"]
+            lines = raw_text.split('\n')
+            relevant_lines = []
+            
+            for i, line in enumerate(lines):
+                if any(kw in line.lower() for kw in keywords):
+                    # Grab the keyword line, plus 2 lines above and 2 lines below for context
+                    start = max(0, i - 2)
+                    end = min(len(lines), i + 3)
+                    relevant_lines.extend(lines[start:end])
+            
+            # Remove duplicate lines while keeping them in order
+            seen = set()
+            unique_lines = []
+            for line in relevant_lines:
+                if line not in seen:
+                    seen.add(line)
+                    unique_lines.append(line)
+            
+            text = "\n".join(unique_lines)
+            
+            # Failsafe limit just in case a document spams keywords
+            text = text[:15000]
             
             # 2. Command the AI to return STRICT JSON
             prompt = f"""
