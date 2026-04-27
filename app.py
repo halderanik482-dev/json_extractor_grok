@@ -55,7 +55,7 @@ if uploaded_file is not None:
                         "content": prompt,
                     }
                 ],
-                model="llama3-8b-8192", # This is Meta's fast, free open-source model
+                model="llama-3.1-8b-instant", # This is Meta's fast, free open-source model
                 temperature=0, # Keeps the AI focused on pure data extraction, no creativity
             )
             
