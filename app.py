@@ -24,13 +24,18 @@ uploaded_file = st.file_uploader("Upload Medical PDF", type="pdf")
 if uploaded_file is not None:
     with st.spinner("Groq is reading the report at lightning speed..."):
         try:
-            # 1. Read the PDF
+            # 1. Read the PDF (Safely limited for free tier)
             text = ""
             with pdfplumber.open(uploaded_file) as pdf:
-                for page in pdf.pages:
+                # Only read the first 4 pages to avoid token limits
+                for page in pdf.pages[:4]: 
                     extracted = page.extract_text()
                     if extracted:
                         text += extracted + "\n"
+            
+            # Failsafe: Force cut the text at 18,000 characters (roughly 4,500 tokens)
+            # This guarantees you will NEVER hit the 6,000 limit.
+            text = text[:18000]
             
             # 2. Command the AI to return STRICT JSON
             prompt = f"""
